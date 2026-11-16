@@ -1,102 +1,62 @@
-const $ = id => document.getElementById(id);
-let latest = null;
-const numericIds = ["height","angle","radius","middle","leadIn","leadOut","diameter"];
-const fmt = n => Number(n).toLocaleString("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1});
-
-function readInput(){
-  return {
-    height:+$("height").value, angle:+$("angle").value, radius:+$("radius").value,
-    middle:+$("middle").value, leadIn:+$("leadIn").value, leadOut:+$("leadOut").value,
-    material:$("material").value, diameter:+$("diameter").value,
-    bender:$("bender").value, jobName:$("jobName").value.trim()
-  };
+const $=id=>document.getElementById(id);
+const f=n=>Number(n).toLocaleString("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const mm=n=>f(n)+" mm";
+function calc(){
+ const H=+$("height").value,A=+$("angle").value,R=+$("radius").value,M=+$("middle").value,L=+$("lead").value,T=+$("tail").value,D=+$("diameter").value;
+ const warnings=[];
+ if(!(H>0&&A>0&&A<90&&R>0&&M>=0&&L>=0&&T>=0&&D>0)){
+  $("results").innerHTML="";$("drawing").innerHTML="<p style='padding:20px'>Vérifie les valeurs saisies.</p>";$("warning").textContent="Les dimensions doivent être positives et l'angle compris entre 0° et 90°.";return;
+ }
+ const a=A*Math.PI/180;
+ // Formula reproduced from the V1 result screen for the displayed test:
+ // inclined tangent straight required to achieve the entered axis-to-axis height.
+ const straight=(H-2*R*(1-Math.cos(a)))/Math.sin(a);
+ const arc=R*a;
+ const projection=2*straight*Math.cos(a)+2*R*Math.sin(a)+M;
+ const developed=L+T+2*straight+2*arc+M;
+ if(straight<0)warnings.push("Le rayon et l'angle seuls dépassent la hauteur demandée : paramètres géométriquement incompatibles.");
+ if(straight>=0){
+  $("results").innerHTML=[
+   ["Longueur droite inclinée",mm(straight),"par côté"],
+   ["Longueur d’arc",mm(arc),"par cintrage"],
+   ["Projection horizontale calculée",mm(projection),"valeur du modèle V1"],
+   ["Longueur développée théorique",mm(developed),"longueur totale"]
+  ].map(x=>`<div class="metric"><span>${x[0]} · ${x[2]}</span><strong>${x[1]}</strong></div>`).join("");
+ }else $("results").innerHTML="<div class='metric'><span>Longueur droite inclinée</span><strong>Impossible</strong></div>";
+ const msg=`Entrées : hauteur ${mm(H)}, angle ${f(A)}°, rayon ${mm(R)}, droite intermédiaire ${mm(M)}. `;
+ warnings.push(msg+"La définition géométrique exacte de la droite intermédiaire doit être confirmée : l'écran V1 et ses résultats ne suffisent pas à établir sans ambiguïté si cette cote est mesurée sur l'axe du tube ou en projection.");
+ $("warning").textContent=warnings.join(" ");
+ draw({H,A,R,M,L,T,D,straight,arc,projection,developed});
 }
-function calculate(){
-  const x=readInput();
-  const vals=[x.height,x.angle,x.radius,x.middle,x.leadIn,x.leadOut,x.diameter];
-  const err=$("error"), results=$("results"), empty=$("emptyState");
-  err.hidden=true; results.hidden=true; empty.hidden=true;
-  if(vals.some(v=>!Number.isFinite(v)||v<0)||x.height<=0||x.radius<=0||x.angle<=0||x.angle>=90){
-    err.textContent="Vérifie les valeurs : hauteur et rayon positifs, angle entre 0° et 90°, autres dimensions positives ou nulles.";
-    err.hidden=false; latest=null; return;
-  }
-  const t=x.angle*Math.PI/180;
-  const riseFromArcs=2*x.radius*(1-Math.cos(t));
-  const remaining=x.height-riseFromArcs;
-  if(remaining<=0){
-    err.textContent="La hauteur est trop faible pour le rayon et l'angle choisis. Réduis le rayon ou l'angle.";
-    err.hidden=false; latest=null; return;
-  }
-  const inclined=remaining/Math.sin(t);
-  const arc=x.radius*t;
-  const developed=x.leadIn+x.leadOut+x.middle+2*inclined+2*arc;
-  const horizontal=2*x.radius*Math.sin(t)+2*inclined*Math.cos(t)+x.middle;
-  latest={...x,inclined,arc,developed,horizontal,createdAt:new Date().toISOString()};
-  $("inclined").textContent=fmt(inclined)+" mm";
-  $("arc").textContent=fmt(arc)+" mm";
-  $("horizontal").textContent=fmt(horizontal)+" mm";
-  $("developed").textContent=fmt(developed);
-  drawDiagram(x,t,inclined);
-  results.hidden=false;
+function draw(v){
+ const {H,A,R,M,L,T,D,straight,arc,projection,developed}=v;
+ const valid=straight>=0;
+ // Fixed isometric-style schematic; dimensions are dynamically rebound to calculation values.
+ const yTop=valid?Math.max(70,Math.min(135,170-H*0.55)):115;
+ const midX=400, left=75, right=725, base=205;
+ const peak=base-(base-yTop);
+ const p=`M ${left} ${base} L 205 ${base} Q 235 ${base} 255 ${base-25} L 365 ${yTop+15} Q 400 ${yTop-15} 435 ${yTop+15} L 545 ${base-25} Q 565 ${base} 595 ${base} L ${right} ${base}`;
+ $("drawing").innerHTML=`<svg viewBox="0 0 800 330" role="img" aria-label="Schéma coté du tube cintré">
+ <defs><linearGradient id="cu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe0b2"/><stop offset=".28" stop-color="#c9783d"/><stop offset=".55" stop-color="#f4b477"/><stop offset="1" stop-color="#87451f"/></linearGradient><filter id="sh"><feGaussianBlur stdDeviation="4"/></filter></defs>
+ <path d="${p}" fill="none" stroke="#000" stroke-width="31" opacity=".35" filter="url(#sh)" transform="translate(0 7)"/>
+ <path d="${p}" fill="none" stroke="url(#cu)" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+ <path d="${p}" fill="none" stroke="#fff0d8" stroke-width="2" opacity=".65" stroke-linecap="round"/>
+ <path d="M 255 245 V 275 M 545 245 V 275" stroke="#9db4ca" stroke-dasharray="5 5"/>
+ <path d="M 255 270 H 545 M 255 262 V 278 M 545 262 V 278" stroke="#f5d46e" stroke-width="2"/>
+ <text x="400" y="293" text-anchor="middle" fill="#ffe17c" font-size="16" font-weight="bold">${mm(M)} · droite intermédiaire saisie</text>
+ <path d="M 385 ${yTop} H 415 M 400 ${yTop} V ${base}" stroke="#f5d46e" stroke-width="2"/>
+ <path d="M 392 ${yTop} L 400 ${yTop-7} L 408 ${yTop} M 392 ${base} L 400 ${base+7} L 408 ${base}" fill="none" stroke="#f5d46e" stroke-width="2"/>
+ <text x="418" y="${(yTop+base)/2}" fill="#ffe17c" font-size="15" font-weight="bold">H ${mm(H)}</text>
+ <text x="270" y="${yTop+45}" fill="#fff" font-size="14">R ${mm(R)} · ${f(A)}°</text>
+ <text x="530" y="${yTop+45}" text-anchor="end" fill="#fff" font-size="14">R ${mm(R)} · ${f(A)}°</text>
+ <path d="M ${left} 315 H ${right} M ${left} 307 V 323 M ${right} 307 V 323" stroke="#b7cbe0" stroke-width="1.5"/>
+ <text x="400" y="311" text-anchor="middle" fill="#d9e8f7" font-size="13">Développé théorique : ${mm(developed)} · Ø ${mm(D)}</text>
+ <text x="75" y="235" fill="#b9cee3" font-size="12">Avant ${mm(L)}</text><text x="725" y="235" text-anchor="end" fill="#b9cee3" font-size="12">Après ${mm(T)}</text>
+ <text x="400" y="25" text-anchor="middle" fill="#8eddf5" font-size="15" font-weight="bold">Vue 3D schématique · ${$("material").value} · ${$("bender").value}</text>
+ <text x="400" y="45" text-anchor="middle" fill="#9fb4c9" font-size="11">Droite inclinée calculée par côté : ${mm(straight)} · arc par cintrage : ${mm(arc)}</text>
+ </svg>`;
 }
-function drawDiagram(x,t,L){
-  // Schematic only: not a fabrication template or to scale.
-  const p=(x0,y0)=>`${x0.toFixed(1)},${y0.toFixed(1)}`;
-  const s=2*x.radius*Math.sin(t)+2*L*Math.cos(t)+x.middle;
-  const scale=Math.min(500/Math.max(s,1),150/Math.max(x.height,1));
-  const baseY=188, x0=36, r=x.radius*scale, rise=x.height*scale;
-  const dx=L*Math.cos(t)*scale, dy=L*Math.sin(t)*scale;
-  const arcDx=x.radius*Math.sin(t)*scale, arcDy=x.radius*(1-Math.cos(t))*scale;
-  const start=[x0,baseY], firstT=[x0+arcDx,baseY-arcDy];
-  const midEnd=[firstT[0]+dx,firstT[1]-dy];
-  const secondT=[midEnd[0]+arcDx,midEnd[1]+arcDy];
-  const end=[secondT[0]+x.radius*Math.sin(t)*scale,secondT[1]+x.radius*(1-Math.cos(t))*scale];
-  const d=`M ${p(...start)} L ${p(...firstT)} L ${p(...midEnd)} L ${p(...secondT)} L ${p(...end)}`;
-  $("pipePath").setAttribute("d",d);
-}
-function projects(){try{return JSON.parse(localStorage.getItem("tracetube-projects")||"[]")}catch{return []}}
-function save(){
-  if(!latest){calculate();if(!latest)return}
-  const list=projects();
-  list.unshift(latest);
-  localStorage.setItem("tracetube-projects",JSON.stringify(list.slice(0,100)));
-  renderHistory();
-  const b=$("saveProject"); b.textContent="Projet enregistré ✓"; setTimeout(()=>b.textContent="Enregistrer le projet",1500);
-}
-function renderHistory(){
-  const list=projects(), host=$("historyList");
-  host.innerHTML="";
-  if(!list.length){host.innerHTML='<div class="panel empty">Aucun projet enregistré pour le moment.</div>';return}
-  list.forEach((p,i)=>{
-    const el=document.createElement("article");el.className="history-item";
-    const date=new Date(p.createdAt).toLocaleString("fr-FR");
-    const title=p.jobName||"Chapeau de gendarme";
-    el.innerHTML=`<h3></h3><p></p><p></p><button type="button">Recharger ce projet</button>`;
-    el.querySelector("h3").textContent=title;
-    el.querySelectorAll("p")[0].textContent=`${date} · ${p.material} · Ø ${fmt(p.diameter)} mm`;
-    el.querySelectorAll("p")[1].textContent=`Hauteur ${fmt(p.height)} mm · angle ${fmt(p.angle)}° · développé ${fmt(p.developed)} mm`;
-    el.querySelector("button").addEventListener("click",()=>loadProject(p));
-    host.appendChild(el);
-  });
-}
-function loadProject(p){
-  const map={height:"height",angle:"angle",radius:"radius",middle:"middle",leadIn:"leadIn",leadOut:"leadOut",material:"material",diameter:"diameter",bender:"bender",jobName:"jobName"};
-  Object.entries(map).forEach(([k,id])=>$(id).value=p[k]??"");
-  document.querySelector('[data-tab="calc"]').click(); calculate();
-}
-document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
-  document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===b.dataset.tab));
-  if(b.dataset.tab==="history")renderHistory();
-}));
-$("calculate").addEventListener("click",calculate);
-$("saveProject").addEventListener("click",save);
-$("printSheet").addEventListener("click",()=>{if(!latest)calculate();if(latest)window.print()});
-$("clearHistory").addEventListener("click",()=>{
-  if(confirm("Effacer tous les projets enregistrés sur cet appareil ?")){localStorage.removeItem("tracetube-projects");renderHistory()}
-});
-numericIds.forEach(id=>$(id).addEventListener("change",()=>{if(latest)calculate()}));
-window.addEventListener("online",()=>{$("networkState").textContent="Connecté"});
-window.addEventListener("offline",()=>{$("networkState").textContent="Hors ligne"});
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}))}
-calculate();renderHistory();
+["height","angle","radius","middle","lead","tail","diameter","material","bender","job"].forEach(id=>$(id).addEventListener("input",calc));
+$("print").addEventListener("click",()=>window.print());
+if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+calc();
