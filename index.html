@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101b2b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TraceTube Pro">
+  <meta name="description" content="Assistant de traçage et de cintrage de tubes.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+  <title>TraceTube Pro</title>
+</head>
+<body>
+<header class="topbar">
+  <div class="brandmark">TT</div>
+  <div><div class="brand">TraceTube Pro</div><div class="subtitle">Assistant de traçage & cintrage</div></div>
+  <span class="offline" id="networkState">Hors ligne prêt</span>
+</header>
+
+<main>
+  <nav class="tabs" aria-label="Navigation">
+    <button class="tab active" data-tab="calc">Calculs</button>
+    <button class="tab" data-tab="history">Historique</button>
+    <button class="tab" data-tab="tools">Outils</button>
+  </nav>
+
+  <section id="calc" class="page active">
+    <div class="intro">
+      <div class="eyebrow">MODULE 01 · CINTRAGE</div>
+      <h1>Chapeau de gendarme</h1>
+      <p>Calcul géométrique symétrique à deux cintrages circulaires.</p>
+    </div>
+
+    <section class="panel">
+      <div class="section-title"><span>01</span><div><h2>Dimensions</h2><p>Toutes les valeurs sont en millimètres.</p></div></div>
+      <div class="fields">
+        <label>Hauteur axe à axe <span class="unit">mm</span><input id="height" type="number" inputmode="decimal" min="0" step="0.1" value="100"></label>
+        <label>Angle de chaque cintrage <span class="unit">°</span><input id="angle" type="number" inputmode="decimal" min="0" max="89.9" step="0.1" value="45"></label>
+        <label>Rayon réel de cintrage <span class="unit">mm</span><input id="radius" type="number" inputmode="decimal" min="0" step="0.1" value="40"></label>
+        <label>Droite entre les deux courbes <span class="unit">mm</span><input id="middle" type="number" inputmode="decimal" min="0" step="0.1" value="100"></label>
+        <label>Droite avant le 1er cintrage <span class="unit">mm</span><input id="leadIn" type="number" inputmode="decimal" min="0" step="0.1" value="100"></label>
+        <label>Droite après le 2e cintrage <span class="unit">mm</span><input id="leadOut" type="number" inputmode="decimal" min="0" step="0.1" value="100"></label>
+      </div>
+      <div class="hint">Le rayon doit être mesuré sur ta cintreuse et correspondre au diamètre de tube utilisé.</div>
+      <button class="primary" id="calculate">Calculer le traçage</button>
+    </section>
+
+    <section class="panel">
+      <div class="section-title"><span>02</span><div><h2>Configuration</h2><p>Informations conservées avec le projet.</p></div></div>
+      <div class="fields two">
+        <label>Matière<select id="material"><option>Cuivre</option><option>Acier</option><option>Inox</option><option>Multicouche</option><option>PER</option><option>Autre</option></select></label>
+        <label>Diamètre extérieur <span class="unit">mm</span><input id="diameter" type="number" inputmode="decimal" min="0" step="0.1" value="22"></label>
+        <label>Type de cintreuse<select id="bender"><option>Arbalète manuelle</option><option>Levier manuel</option><option>Autre / personnalisé</option></select></label>
+        <label>Nom du chantier<input id="jobName" type="text" placeholder="Ex. Salle de bains"></label>
+      </div>
+    </section>
+
+    <section class="panel result-panel" id="resultPanel">
+      <div class="section-title"><span>03</span><div><h2>Résultats</h2><p>Valeurs géométriques théoriques.</p></div></div>
+      <div id="error" class="error" hidden></div>
+      <div id="results" hidden>
+        <div class="result-grid">
+          <div class="metric"><small>Longueur droite inclinée</small><strong id="inclined">—</strong><span>par côté</span></div>
+          <div class="metric"><small>Longueur d'arc</small><strong id="arc">—</strong><span>par cintrage</span></div>
+          <div class="metric"><small>Projection horizontale</small><strong id="horizontal">—</strong><span>entre tangences</span></div>
+        </div>
+        <div class="total"><div><small>Longueur développée théorique</small><strong id="developed">—</strong></div><span>mm</span></div>
+        <svg id="diagram" viewBox="0 0 640 240" role="img" aria-label="Schéma indicatif du chapeau de gendarme">
+          <path id="pipePath" d="" fill="none" stroke="#4d9cff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="35" y1="190" x2="605" y2="190" stroke="#8291a5" stroke-dasharray="5 6"/>
+          <text x="36" y="216" fill="#8291a5" font-size="13">Schéma indicatif — non à l'échelle</text>
+        </svg>
+        <p class="warning">Attention : ce résultat ne corrige pas le retour élastique, l'écrasement, les pertes propres à la cintreuse ni les tolérances matière. Faire un essai et contrôler les cotes avant toute coupe définitive.</p>
+        <div class="actions">
+          <button class="primary" id="saveProject">Enregistrer le projet</button>
+          <button class="secondary" id="printSheet">Fiche / PDF</button>
+        </div>
+      </div>
+      <div id="emptyState" class="empty">Saisis tes dimensions puis lance le calcul.</div>
+    </section>
+  </section>
+
+  <section id="history" class="page">
+    <div class="intro"><div class="eyebrow">MES TRAVAUX</div><h1>Historique</h1><p>Les projets sont enregistrés sur cet appareil.</p></div>
+    <div id="historyList" class="history-list"></div>
+    <button class="secondary danger" id="clearHistory">Effacer tout l'historique</button>
+  </section>
+
+  <section id="tools" class="page">
+    <div class="intro"><div class="eyebrow">RÉGLAGES MÉTIER</div><h1>Outils & calibration</h1><p>Prépare les profils de tes cintreuses.</p></div>
+    <div class="panel">
+      <h2>Mesurer le rayon réel</h2>
+      <ol class="instructions">
+        <li>Effectue un cintrage d'essai avec le diamètre et la matière concernés.</li>
+        <li>Repère les deux points où la partie droite commence réellement à se courber.</li>
+        <li>Mesure le rayon sur l'axe du tube, ou relève-le à partir d'un gabarit adapté.</li>
+        <li>Reporte cette valeur dans le calcul. Ne confonds pas rayon intérieur, extérieur et rayon à l'axe.</li>
+      </ol>
+      <div class="hint">La calibration enregistrée par outil, diamètre et matériau sera ajoutée dans une prochaine version.</div>
+    </div>
+    <div class="panel">
+      <h2>Installation sur iPhone</h2>
+      <ol class="instructions">
+        <li>Ouvre l'adresse web de l'application dans Safari.</li>
+        <li>Touche le bouton <b>Partager</b>.</li>
+        <li>Choisis <b>Sur l'écran d'accueil</b>, puis Ajouter.</li>
+      </ol>
+      <p class="hint">Pour que l'installation et le mode hors connexion fonctionnent, le dossier doit être publié sur un hébergement HTTPS.</p>
+    </div>
+    <div class="panel">
+      <h2>À venir</h2>
+      <div class="coming">Mode personnalisé · deux angles et rayons indépendants</div>
+      <div class="coming">Baïonnette et dévoiements</div>
+      <div class="coming">Vue 3D manipulable</div>
+      <div class="coming">Profils de cintreuses par diamètre et matière</div>
+    </div>
+  </section>
+</main>
+<footer>TraceTube Pro · Prototype de développement · Calculs à valider avant fabrication</footer>
+<script src="app.js"></script>
+</body>
+</html>

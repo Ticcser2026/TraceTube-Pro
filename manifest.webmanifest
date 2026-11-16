@@ -1,0 +1,11 @@
+{
+  "name": "TraceTube Pro",
+  "short_name": "TraceTube Pro",
+  "description": "Assistant de traçage et cintrage de tubes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101b2b",
+  "orientation": "portrait"
+}
